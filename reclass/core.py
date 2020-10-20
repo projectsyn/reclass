@@ -116,22 +116,22 @@ class Core(object):
         if context is None:
             context = Entity(self._settings, name='empty (@{0})'.format(nodename))
 
+        # Make a copy of context.parameters to avoid polluting the original
+        # context by initialising parameter interpolation
+        ctxparams = copy.deepcopy(context.parameters)
+        # Enable interpolation for copy of parameters before using the copy to
+        # resolve references in class names
+        ctxparams.initialise_interpolation()
+
         for klass in entity.classes.as_list():
             # class name contain reference
             num_references = klass.count(self._settings.reference_sentinels[0]) +\
                              klass.count(self._settings.export_sentinels[0])
             if num_references > 0:
                 try:
-                    klass = str(self._parser.parse(klass, self._settings).render(merge_base.parameters.as_dict(), {}))
+                    klass = str(self._parser.parse(klass, self._settings).render(ctxparams.as_dict(), {}))
                 except ResolveError as e:
-                    try:
-                        # make copy of context.parameters to avoid polluting the original with this interpolation
-                        params = copy.deepcopy(context.parameters)
-                        # interpolate parameters before using them in the klass name. Used for overrides
-                        params.initialise_interpolation()
-                        klass = str(self._parser.parse(klass, self._settings).render(params.as_dict(), {}))
-                    except ResolveError as e:
-                        raise ClassNameResolveError(klass, nodename, entity.uri)
+                    raise ClassNameResolveError(klass, nodename, entity.uri)
 
             if klass not in seen:
                 try:
